@@ -2,6 +2,25 @@
 
 let pdfjsPromise;
 
+// Safari kann ReadableStreams nicht mit for await durchlaufen; pdf.js braucht das
+// für getTextContent ("undefined is not a function (near '...t of e...')").
+if (typeof ReadableStream !== 'undefined' && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  ReadableStream.prototype.values = async function* values({ preventCancel = false } = {}) {
+    const reader = this.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        yield value;
+      }
+    } finally {
+      if (!preventCancel) reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  };
+  ReadableStream.prototype[Symbol.asyncIterator] = ReadableStream.prototype.values;
+}
+
 function loadPdfJs() {
   pdfjsPromise ??= import('../vendor/pdf.min.js').then((pdfjs) => {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.js', import.meta.url).href;
