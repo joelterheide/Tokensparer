@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token-Sparer für Claude</title>
+  <meta name="description" content="Dateien so umwandeln, dass Claude möglichst wenige Tokens verbraucht – PDF, Word, Excel, PowerPoint, Bilder, Code und mehr. Alles läuft lokal im Browser.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 11h14M9 16h9M9 21h5' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="badge">🔒 Läuft komplett in deinem Browser – nichts wird hochgeladen</p>
+      <h1>Token-Sparer <span>für Claude</span></h1>
+      <p class="lead">Füge Dateien ein – das Tool wandelt sie so um, dass Claude möglichst wenige Tokens verbraucht. Danach den Text kopieren oder die verkleinerten Bilder direkt in Claude einfügen.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card input-card" aria-label="Dateien hinzufügen">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple hidden>
+        <div class="dz-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        </div>
+        <p class="dz-title">Dateien hierher ziehen</p>
+        <p class="dz-sub">oder <button type="button" class="link-button" id="pick-files">Dateien auswählen</button> · Screenshots mit <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd> einfügen</p>
+        <p class="dz-types">PDF · Word · Excel · PowerPoint · Bilder · HTML · Markdown · CSV · JSON · XML · Code · Jupyter · Untertitel · Text</p>
+      </div>
+      <details class="paste">
+        <summary>Oder Text direkt einfügen</summary>
+        <textarea id="paste-text" rows="6" placeholder="Text, HTML, JSON, Log-Ausgabe … hier einfügen"></textarea>
+        <div class="row-end">
+          <button type="button" class="button" id="paste-add">Hinzufügen</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card settings" aria-label="Einstellungen">
+      <div class="settings-top">
+        <fieldset class="presets" id="presets">
+          <legend>Stärke</legend>
+        </fieldset>
+        <label class="field">
+          <span>Ziel-Modell</span>
+          <select id="model"></select>
+        </label>
+      </div>
+      <p class="preset-hint" id="preset-hint"></p>
+      <details class="details-options">
+        <summary>Einstellungen im Detail</summary>
+        <div class="option-groups" id="option-groups"></div>
+        <div class="option-selects">
+          <label class="field">
+            <span>Bilder: Token-Budget pro Bild</span>
+            <select id="imageBudget"></select>
+          </label>
+          <label class="field">
+            <span>Bilder: Dateiformat</span>
+            <select id="imageFormat">
+              <option value="auto">Automatisch</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Mehrere Dateien trennen mit</span>
+            <select id="outputFormat">
+              <option value="xml">XML-Tags &lt;document&gt; (empfohlen)</option>
+              <option value="md">Überschriften</option>
+              <option value="plain">Trennlinie</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Format, Qualität und Farbe eines Bildes ändern die Token-Zahl nicht – nur die Pixelmaße zählen.</p>
+      </details>
+    </section>
+
+    <section class="results" id="results" hidden>
+      <div class="card summary" id="summary">
+        <div class="summary-numbers">
+          <div class="num">
+            <span class="num-label">Vorher</span>
+            <span class="num-value" id="sum-before">–</span>
+          </div>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="num">
+            <span class="num-label">Nachher</span>
+            <span class="num-value accent" id="sum-after">–</span>
+          </div>
+          <div class="saving-big" id="sum-saving"></div>
+        </div>
+        <div class="bar" aria-hidden="true"><div class="bar-fill" id="sum-bar"></div></div>
+        <p class="summary-hint" id="sum-hint"></p>
+      </div>
+
+      <ul class="file-list" id="file-list"></ul>
+
+      <div class="card output" id="output-card" hidden>
+        <div class="output-head">
+          <h2>Text für Claude</h2>
+          <div class="buttons">
+            <button type="button" class="button" id="download-text">Als Datei speichern</button>
+            <button type="button" class="button primary" id="copy-text">Kopieren</button>
+          </div>
+        </div>
+        <textarea id="output" spellcheck="false" aria-label="Optimierter Text"></textarea>
+        <p class="hint">Du kannst den Text hier noch kürzen – die Zählung passt sich an. <button type="button" class="link-button" id="clear-all">Alles leeren</button></p>
+      </div>
+      <p class="card image-hint" id="image-hint" hidden>Bilder kannst du oben einzeln <strong>kopieren</strong> und in Claude mit <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd> einfügen – oder herunterladen und hochladen.</p>
+    </section>
+
+    <section class="card exact" id="exact">
+      <details>
+        <summary>Exakt zählen mit eigenem API-Key <span class="muted">(optional)</span></summary>
+        <p>Ohne Key schätzt das Tool die Text-Tokens – gut für den Vorher-Nachher-Vergleich, aber nicht auf den Token genau. Bilder werden exakt berechnet. Mit einem <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Anthropic-API-Key</a> fragt es die echten Zahlen bei der kostenlosen Token-Counting-Schnittstelle ab. Dabei gehen Key und Inhalte direkt von deinem Browser an <code>api.anthropic.com</code> – an niemanden sonst.</p>
+        <div class="exact-row">
+          <input type="password" id="api-key" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="API-Key">
+          <button type="button" class="button primary" id="count-exact">Exakt zählen</button>
+        </div>
+        <label class="check"><input type="checkbox" id="remember-key"> Key in diesem Browser speichern</label>
+        <p class="status" id="count-status" role="status"></p>
+      </details>
+    </section>
+
+    <section class="card tips">
+      <h2>So sparst du zusätzlich Tokens</h2>
+      <ul>
+        <li><strong>Nur das Nötige schicken.</strong> Bei PDFs kannst du oben einen Seitenbereich angeben, z. B. <code>3-7</code>.</li>
+        <li><strong>Bilder kosten nach Fläche:</strong> ⌈Breite/28⌉ × ⌈Höhe/28⌉ Tokens. Ein 4K-Screenshot kostet bis zu 4.784 Tokens, auf 1.000 px Breite verkleinert nur noch 756. Zuschneiden hilft am meisten.</li>
+        <li><strong>Text statt Screenshot:</strong> Zeigt ein Bild nur Text, kopiere lieber den Text (z. B. mit „Live Text“ auf iPhone/Mac oder „Textaktionen“ im Windows-Snipping-Tool). Das ist meist um ein Vielfaches günstiger.</li>
+        <li><strong>PDFs:</strong> Claude verarbeitet jede Seite als Text <em>und</em> als Bild. Kommt es auf Diagramme und Layout nicht an, spart reiner Text oft mehr als die Hälfte.</li>
+        <li><strong>Tabellen als CSV</strong> statt Excel-Screenshot oder formatiertem JSON.</li>
+        <li><strong>Neues Thema, neuer Chat:</strong> Mit jeder Nachricht wird der bisherige Verlauf erneut mitgeschickt. Lange Chats werden dadurch immer teurer.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>Inoffizielles Tool, nicht mit Anthropic verbunden. Token-Zahlen ohne API-Key sind Schätzungen. Bild- und PDF-Regeln nach der <a href="https://platform.claude.com/docs/en/build-with-claude/vision" target="_blank" rel="noopener">Claude-Dokumentation</a>.</p>
+    <p><a href="../">← Zur Startseite</a></p>
+  </footer>
+</body>
+</html>

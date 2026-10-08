@@ -1,0 +1,17 @@
+{
+  "name": "token-sparer-dev",
+  "private": true,
+  "description": "Entwicklungswerkzeuge für den Token-Sparer (nicht Teil der Website).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "vendor": "node vendor.mjs"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
+    "esbuild": "0.28.2",
+    "fflate": "0.8.3",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.4.299"
+  }
+}
